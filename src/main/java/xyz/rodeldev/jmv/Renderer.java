@@ -24,6 +24,7 @@ import org.joml.Vector3f;
 import org.lwjgl.system.MemoryStack;
 
 import xyz.rodeldev.jmv.model.Element;
+import xyz.rodeldev.jmv.model.Model;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.system.MemoryUtil.*;
@@ -47,8 +48,10 @@ public class Renderer{
 
     public BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
 
-    public boolean pixel = true;
+    public boolean pixel = false;
     public int resolution = 32;
+
+    public Model model;
 
     public void createContext(long context){
 
@@ -117,8 +120,8 @@ public class Renderer{
 
 
         // Textures
-        // floor_texture = TextureLoader.loadTexture("/dirt.png");
-        floor_texture = TextureLoader.loadTexture("/white_stained_glass.png");
+        floor_texture = TextureLoader.loadTexture("/dirt.png");
+        // floor_texture = TextureLoader.loadTexture("/white_stained_glass.png");
 
         element = new Element(new Vector3f(0, 0, 0), new Vector3f(16, 16, 16));
     }
@@ -171,7 +174,12 @@ public class Renderer{
         // glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         // glDepthMask(true);
         // glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-        renderElement(element);
+        if(this.model!=null){
+            for(Element element : this.model.flatElement()){
+                renderElement(element);
+            }
+        }
+        // renderElement(element);
 
         // glBegin(GL_QUADS);
         // glTexCoord2f(0, 0);
