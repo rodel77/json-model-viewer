@@ -8,10 +8,16 @@ import org.lwjgl.system.*;
 import org.lwjgl.system.jawt.*;
 import org.lwjgl.system.linux.*;
 
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.awt.Graphics2D;
 import java.awt.*;
 import java.awt.event.*;
 import java.nio.*;
 import java.util.*;
+
+import javax.imageio.ImageIO;
+import javax.sound.midi.SysexMessage;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.glfw.GLFWNativeWin32.*;
@@ -69,6 +75,7 @@ public class LWJGLCanvas extends Canvas {
                         break;
                     case GLFW_KEY_Z:
                         renderer.screenshot();
+                        // screenshot();
                         break;
                     default: break;
                 }
@@ -89,6 +96,18 @@ public class LWJGLCanvas extends Canvas {
     public void paint(Graphics g) {
         paint();
         repaint();
+        // screenshot();
+        // System.exit(1);
+    }
+
+    public void screenshot(){
+        BufferedImage buffer = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = (Graphics2D) getGraphics();
+        try {
+            ImageIO.write(buffer, "png", new File("newOut.png"));
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void paint(){
@@ -115,7 +134,7 @@ public class LWJGLCanvas extends Canvas {
 
                         if(context==NULL){
                             createContextGLFW(drawingSurfaceInfoWin32);
-                            renderer.createContext(context, this);
+                            renderer.createContext(context);
                         }else{
                             glfwMakeContextCurrent(context);
                             GL.setCapabilities(capabilities);
