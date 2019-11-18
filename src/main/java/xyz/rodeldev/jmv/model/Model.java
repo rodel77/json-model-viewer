@@ -24,7 +24,9 @@ public class Model {
 
     public String name;
 
-    private HashMap<String, String> textures;
+    private Display guiDisplay;
+
+    public HashMap<String, String> textures;
 
     public Model parent;
     public Model child;
@@ -44,7 +46,7 @@ public class Model {
 
         if(json.has("parent")){
             File parent_file = new File(JSONModelViewer.models_folder, json.get("parent").getAsString()+".json");
-            parent = new Model(parent_file);
+            parent = new Model(parent_file, this.textures);
             parent.child = this;
         }
 
@@ -71,6 +73,22 @@ public class Model {
                 elements.add(new Element(jsonElement.getAsJsonObject()));
             }
         }
+
+        if(json.has("display")){
+            JsonObject display = json.get("display").getAsJsonObject();
+            if(display.has("gui")){
+                guiDisplay = new Display(display.get("gui").getAsJsonObject());
+            }
+        }
+    }
+
+    public Display getFirstGUIDisplay(){
+        Model root = this;
+        while(root!=null){
+            if(root.guiDisplay!=null) return root.guiDisplay;
+            root = root.parent;
+        }
+        return null;
     }
 
     public List<Element> flatElement(){

@@ -8,9 +8,14 @@ import static org.lwjgl.opengl.EXTFramebufferObject.*;
 import java.awt.image.BufferedImage;
 import java.awt.*;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map.Entry;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -23,8 +28,11 @@ import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.lwjgl.system.MemoryStack;
 
+import xyz.rodeldev.jmv.model.Display;
 import xyz.rodeldev.jmv.model.Element;
+import xyz.rodeldev.jmv.model.Face;
 import xyz.rodeldev.jmv.model.Model;
+import xyz.rodeldev.jmv.model.Element.Direction;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.system.MemoryUtil.*;
@@ -33,7 +41,7 @@ import static org.lwjgl.system.MemoryStack.*;
 public class Renderer{
     private long context;
 
-    public float zoom = -187;
+    public float zoom = -469;
 
     public boolean isOrtho = true;
     public boolean needsUpdate = false;
@@ -52,6 +60,8 @@ public class Renderer{
     public int resolution = 32;
 
     public Model model;
+
+    public HashMap<String, Integer> bindedTextures = new HashMap<>();
 
     public void createContext(long context){
 
@@ -120,8 +130,36 @@ public class Renderer{
 
 
         // Textures
-        floor_texture = TextureLoader.loadTexture("/dirt.png");
+        floor_texture = TextureLoader.loadTexture("/acacia_planks.png");
         // floor_texture = TextureLoader.loadTexture("/white_stained_glass.png");
+
+        try {
+            for(Entry<String, String> texture : this.model.textures.entrySet()){
+                if(texture.getValue().startsWith("#")){
+                    continue;
+                }
+    
+                int textureID = TextureLoader.loadTexture(new FileInputStream(new File(JSONModelViewer.textures_folder, texture.getValue()+".png")));
+
+                bindedTextures.put(texture.getKey(), textureID);
+            }
+
+            for(Entry<String, String> texture : this.model.textures.entrySet()){
+                if(texture.getValue().startsWith("#")){
+                    bindedTextures.put(texture.getKey(), bindedTextures.get(texture.getValue().substring(1)));
+                }
+            }
+        } catch(Exception e){
+            e.printStackTrace();
+        }
+
+
+        for(Element element : this.model.flatElement()){
+            // for(Entry<Direction, Face> face : element.faces.entrySet()){
+            //     System.out.println(face.getKey()+" "+face.getValue().texture);
+            // }
+        }
+        // System.out.println(this.model);
 
         element = new Element(new Vector3f(0, 0, 0), new Vector3f(16, 16, 16));
     }
@@ -135,6 +173,7 @@ public class Renderer{
     }
 
     public void render(int width, int height){
+        if(this.model==null) return;
         glBindTexture(GL_TEXTURE_2D, floor_texture);
         glBindFramebuffer(GL_FRAMEBUFFER, pixel ? fbo : 0);
         // glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -158,27 +197,24 @@ public class Renderer{
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glLoadIdentity();
-        glTranslatef(0, 0, zoom);
 
-        glRotatef(rx, 1, 0, 0);
-        glRotatef(ry, 0, 1, 0);
-        glRotatef(rz, 0, 0, 1);
+        // glRotatef(rx, 1, 0, 0);
+        // glRotatef(ry, 0, 1, 0);
+        // glRotatef(rz, 0, 0, 1);
 
-        // glDisable(GL_TEXTURE_2D);
-
-        // renderFloor();
-
-        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        // glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        renderModel(this.model);
         // glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         // glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         // glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         // glDepthMask(true);
         // glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-        if(this.model!=null){
-            for(Element element : this.model.flatElement()){
-                renderElement(element);
-            }
-        }
+        // renderModel(this.model);
+        // if(this.model!=null){
+        //     for(Element element : this.model.flatElement()){
+        //         renderElement(element);
+        //     }
+        // }
         // renderElement(element);
 
         // glBegin(GL_QUADS);
@@ -236,38 +272,36 @@ public class Renderer{
             glEnd();
             glPopMatrix();
             glEnable(GL_DEPTH_TEST);
-            glEnable(GL_CULL_FACE);
+            // glEnable(GL_CULL_FACE);
         }
     }
 
-    void renderFloor(){
-        glPushMatrix();
-        {
-            glScalef(.25f, .25f, .25f);
+    void renderModel(Model model){
+        Display guiDisplay = model.getFirstGUIDisplay();
+
+        // System.out.println(zoom);
+
+        glTranslatef(0, 0, zoom);
+
+        glRotatef(rx, 1, 0, 0);
+        glRotatef(ry, 0, 1, 0);
+        glRotatef(rz, 0, 0, 1);
+
+        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        for(Element element : model.flatElement()){
+            glPushMatrix();
+            glScalef(guiDisplay.scale.x, guiDisplay.scale.y, guiDisplay.scale.z);
+            // glScalef(.25f, .25f, .25f);
             glTranslatef(-8f, -8f, -8f);
-            glBegin(GL_QUADS);
-            {
-                glTexCoord2f(0, 0);
-				glVertex3f(-16, 0, -16);
-				glTexCoord2f(0, 1);
-				glVertex3f(-16, 0, 32);
-				glTexCoord2f(1, 1);
-				glVertex3f(32, 0, 32);
-				glTexCoord2f(1, 0);
-				glVertex3f(32, 0, -16);
-            }
-            glEnd();
+            renderElement(element);
+            glPopMatrix();
         }
-        glPopMatrix();
     }
 
     void renderElement(Element element){
         Vector3f from = element.from;
         Vector3f to = element.to;
-        glPushMatrix();
-        glScalef(.25f, .25f, .25f);
-        glTranslatef(-8f, -8f, -8f);
-        glBegin(GL_QUADS);
+        // glBegin(GL_QUADS);
         // glTexCoord2f(0, 0);
         // glVertex3f(element.from.x, element.from.y, element.from.z);
         // glTexCoord2f(0, 1);
@@ -279,67 +313,117 @@ public class Renderer{
         Vector2f uv_to = new Vector2f(0, 1);
         Vector2f uv_from = new Vector2f(1, 0);
 
-        glTexCoord2f(uv_to.x, uv_to.y);
-        glVertex3f(from.x, to.y, from.z);
-        glTexCoord2f(uv_to.x, uv_from.y);
-        glVertex3f(from.x, to.y, to.z);
-        glTexCoord2f(uv_from.x, uv_from.y);
-        glVertex3f(to.x, to.y, to.z);
-        glTexCoord2f(uv_from.x, uv_to.y);
-        glVertex3f(to.x, to.y, from.z);
+        Face up = element.faces.get(Direction.UP);
+        Face north = element.faces.get(Direction.NORTH);
+        Face east = element.faces.get(Direction.EAST);
+        Face south = element.faces.get(Direction.SOUTH);
+        Face west = element.faces.get(Direction.WEST);
+        Face down = element.faces.get(Direction.DOWN);
 
-        glColor3f(.43f, .43f, .43f);
-        glTexCoord2f(uv_to.x, uv_to.y);
-        glVertex3f(from.x, from.y, from.z);
-        glTexCoord2f(uv_to.x, uv_from.y);
-        glVertex3f(from.x, to.y, from.z);
-        glTexCoord2f(uv_from.x, uv_from.y);
-        glVertex3f(to.x, to.y, from.z);
-        glTexCoord2f(uv_from.x, uv_to.y);
-        glVertex3f(to.x, from.y, from.z);
-        glColor3f(1, 1, 1);
+        glEnable(GL_CULL_FACE);
+        if(up!=null){
+            glCullFace(GL_BACK);
+            // System.out.println(up.texture);
+            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(up.texture));
+            glBegin(GL_QUADS);
+            glTexCoord2f(uv_to.x, uv_to.y);
+            glVertex3f(from.x, to.y, from.z);
+            glTexCoord2f(uv_to.x, uv_from.y);
+            glVertex3f(from.x, to.y, to.z);
+            glTexCoord2f(uv_from.x, uv_from.y);
+            glVertex3f(to.x, to.y, to.z);
+            glTexCoord2f(uv_from.x, uv_to.y);
+            glVertex3f(to.x, to.y, from.z);
+            glEnd();
+        }
 
-        glColor3f(.63f, .63f, .63f);
-        glTexCoord2f(uv_to.x, uv_to.y);
-        glVertex3f(to.x, from.y, from.z);
-        glTexCoord2f(uv_to.x, uv_from.y);
-        glVertex3f(to.x, to.y, from.z);
-        glTexCoord2f(uv_from.x, uv_from.y);
-        glVertex3f(to.x, to.y, to.z);
-        glTexCoord2f(uv_from.x, uv_to.y);
-        glVertex3f(to.x, from.y, to.z);
-        glColor3f(1, 1, 1);
+        if(north!=null){
+            glCullFace(GL_BACK);
+            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(north.texture));
+            glBegin(GL_QUADS);
+            glColor3f(.43f, .43f, .43f);
+            glTexCoord2f(1, 1);
+            glVertex3f(from.x, from.y, from.z);
+            glTexCoord2f(1, 0);
+            glVertex3f(from.x, to.y, from.z);
+            glTexCoord2f(0, 0);
+            glVertex3f(to.x, to.y, from.z);
+            glTexCoord2f(0, 1);
+            glVertex3f(to.x, from.y, from.z);
+            // glTexCoord2f(uv_to.x, uv_to.y);
+            // glVertex3f(from.x, from.y, from.z);
+            // glTexCoord2f(uv_to.x, uv_from.y);
+            // glVertex3f(from.x, to.y, from.z);
+            // glTexCoord2f(uv_from.x, uv_from.y);
+            // glVertex3f(to.x, to.y, from.z);
+            // glTexCoord2f(uv_from.x, uv_to.y);
+            // glVertex3f(to.x, from.y, from.z);
+            glColor3f(1, 1, 1);
+            glEnd();
+        }
 
-        glTexCoord2f(uv_to.x, uv_to.y);
-        glVertex3f(to.x, from.y, to.z);
-        glTexCoord2f(uv_to.x, uv_from.y);
-        glVertex3f(to.x, to.y, to.z);
-        glTexCoord2f(uv_from.x, uv_from.y);
-        glVertex3f(from.x, to.y, to.z);
-        glTexCoord2f(uv_from.x, uv_to.y);
-        glVertex3f(from.x, from.y, to.z);
+        if(east!=null){
+            glCullFace(GL_BACK);
+            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(east.texture));
+            glBegin(GL_QUADS);
+            glColor3f(.63f, .63f, .63f);
+            glTexCoord2f(uv_to.x, uv_to.y);
+            glVertex3f(to.x, from.y, from.z);
+            glTexCoord2f(uv_to.x, uv_from.y);
+            glVertex3f(to.x, to.y, from.z);
+            glTexCoord2f(uv_from.x, uv_from.y);
+            glVertex3f(to.x, to.y, to.z);
+            glTexCoord2f(uv_from.x, uv_to.y);
+            glVertex3f(to.x, from.y, to.z);
+            glColor3f(1, 1, 1);
+            glEnd();
+        }
 
-        glTexCoord2f(uv_to.x, uv_to.y);
-        glVertex3f(from.x, from.y, to.z);
-        glTexCoord2f(uv_to.x, uv_from.y);
-        glVertex3f(from.x, to.y, to.z);
-        glTexCoord2f(uv_from.x, uv_from.y);
-        glVertex3f(from.x, to.y, from.z);
-        glTexCoord2f(uv_from.x, uv_to.y);
-        glVertex3f(from.x, from.y, from.z);
+        if(south!=null){
+            glCullFace(GL_BACK);
+            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(south.texture));
+            glBegin(GL_QUADS);
+            glTexCoord2f(uv_to.x, uv_to.y);
+            glVertex3f(to.x, from.y, to.z);
+            glTexCoord2f(uv_to.x, uv_from.y);
+            glVertex3f(to.x, to.y, to.z);
+            glTexCoord2f(uv_from.x, uv_from.y);
+            glVertex3f(from.x, to.y, to.z);
+            glTexCoord2f(uv_from.x, uv_to.y);
+            glVertex3f(from.x, from.y, to.z);
+            glEnd();
+        }
 
+        if(west!=null){
+            glCullFace(GL_BACK);
+            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(west.texture));
+            glBegin(GL_QUADS);
+            glTexCoord2f(uv_to.x, uv_to.y);
+            glVertex3f(from.x, from.y, to.z);
+            glTexCoord2f(uv_to.x, uv_from.y);
+            glVertex3f(from.x, to.y, to.z);
+            glTexCoord2f(uv_from.x, uv_from.y);
+            glVertex3f(from.x, to.y, from.z);
+            glTexCoord2f(uv_from.x, uv_to.y);
+            glVertex3f(from.x, from.y, from.z);
+            glEnd();
+        }
 
-        glTexCoord2f(uv_to.x, uv_to.y);
-        glVertex3f(to.x, from.y, from.z);
-        glTexCoord2f(uv_to.x, uv_from.y);
-        glVertex3f(to.x, from.y, to.z);
-        glTexCoord2f(uv_from.x, uv_from.y);
-        glVertex3f(from.x, from.y, to.z);
-        glTexCoord2f(uv_from.x, uv_to.y);
-        glVertex3f(from.x, from.y, from.z);
-
-        glEnd();
-        glPopMatrix();
+        if(down!=null){
+            glCullFace(GL_BACK);
+            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(down.texture));
+            glBegin(GL_QUADS);
+            glTexCoord2f(uv_to.x, uv_to.y);
+            glVertex3f(to.x, from.y, from.z);
+            glTexCoord2f(uv_to.x, uv_from.y);
+            glVertex3f(to.x, from.y, to.z);
+            glTexCoord2f(uv_from.x, uv_from.y);
+            glVertex3f(from.x, from.y, to.z);
+            glTexCoord2f(uv_from.x, uv_to.y);
+            glVertex3f(from.x, from.y, from.z);
+            glEnd();
+        }
+        glDisable(GL_CULL_FACE);
     }
 
     public void screenshot(){

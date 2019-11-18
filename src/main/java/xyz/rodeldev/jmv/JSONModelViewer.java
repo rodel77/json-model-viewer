@@ -32,7 +32,7 @@ public class JSONModelViewer {
 	public LWJGLCanvas canvas;
 	private Renderer renderer;
 
-	private boolean glfw = true;
+	private boolean glfw = false;
 	private boolean headless = false;
 
 	public static String assets_folder = "";

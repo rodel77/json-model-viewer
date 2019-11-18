@@ -9,11 +9,13 @@ import com.google.gson.JsonObject;
 
 import org.joml.Vector3f;
 
+import xyz.rodeldev.jmv.Utils;
+
 public class Element {
     public Vector3f from;
     public Vector3f to;
 
-    private HashMap<Direction, Face> faces = new HashMap<>();
+    public HashMap<Direction, Face> faces = new HashMap<>();
 
     public JsonObject json;
 
@@ -24,18 +26,14 @@ public class Element {
 
     public Element(JsonObject json){
         this.json = json;
-        this.from = parseJsonVector3(json.get("from").getAsJsonArray());
-        this.to   = parseJsonVector3(json.get("to").getAsJsonArray());
+        this.from = Utils.parseJsonVector3(json.get("from").getAsJsonArray());
+        this.to   = Utils.parseJsonVector3(json.get("to").getAsJsonArray());
 
         if(json.has("faces")){
             for(Entry<String, JsonElement> entry : json.get("faces").getAsJsonObject().entrySet()){
                 faces.put(Direction.valueOf(entry.getKey().toUpperCase()), new Face(entry.getValue().getAsJsonObject()));
             }
         }
-    }
-
-    private Vector3f parseJsonVector3(JsonArray vector){
-        return new Vector3f(vector.get(0).getAsFloat(), vector.get(1).getAsFloat(), vector.get(2).getAsFloat());
     }
 
     public enum Direction {
