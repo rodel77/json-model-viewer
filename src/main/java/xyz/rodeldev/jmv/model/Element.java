@@ -31,12 +31,22 @@ public class Element {
 
         if(json.has("faces")){
             for(Entry<String, JsonElement> entry : json.get("faces").getAsJsonObject().entrySet()){
-                faces.put(Direction.valueOf(entry.getKey().toUpperCase()), new Face(entry.getValue().getAsJsonObject()));
+                faces.put(Direction.valueOf(entry.getKey().toUpperCase()), new Face(entry.getValue().getAsJsonObject(), Direction.valueOf(entry.getKey().toUpperCase())));
             }
         }
     }
 
     public enum Direction {
-        UP, DOWN, NORTH, SOUTH, EAST, WEST;
+        UP, DOWN, SOUTH, WEST, NORTH, EAST;
+
+        public Direction next(){
+            switch(this){
+                case NORTH: return WEST;
+                case WEST: return SOUTH;
+                case SOUTH: return EAST;
+                case EAST: return NORTH;
+                default: return UP;
+            }
+        }
     }
 }

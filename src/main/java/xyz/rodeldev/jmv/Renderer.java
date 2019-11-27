@@ -46,17 +46,19 @@ public class Renderer{
     public boolean isOrtho = true;
     public boolean needsUpdate = false;
 
-    public float rx = 30, ry = 225, rz;
+    public float rx = 30, ry = 0, rz;
 
     private int floor_texture;
 
     private Element element;
 
+    private Direction darkDirection;
+
     int fbo, texture;
 
     public BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
 
-    public boolean pixel = false;
+    public boolean pixel = true;
     public int resolution = 32;
 
     public Model model;
@@ -203,10 +205,10 @@ public class Renderer{
         // glRotatef(rz, 0, 0, 1);
 
         // glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        // glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         renderModel(this.model);
         // glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        // glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        // glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         // glDepthMask(true);
         // glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
         // renderModel(this.model);
@@ -278,8 +280,39 @@ public class Renderer{
 
     void renderModel(Model model){
         Display guiDisplay = model.getFirstGUIDisplay();
+        // float rotation = ry;
+        ry = guiDisplay.rotation.y;
+        if(ry<0){
+            ry = 360+ry;
+        }
+        ry %= 360;
 
-        // System.out.println(zoom);
+
+        int direction_index = (int)Math.floor((ry+45)/90);
+        if(direction_index==4) direction_index = 0;
+
+        // float degreePerDirection = 360/8;
+        // float offsetAngle = ry + degreePerDirection /2;
+
+        darkDirection = Direction.values()[direction_index+2];
+        System.out.println(darkDirection);
+        // System.out.println(ry%360);
+        // System.out.println((int)(Math.abs(Math.floor(ry / 90 + .5)))%4);
+
+        // System.out.println(360/8);
+        // System.out.println(Math.cos(Math.toRadians(ry))+" "+Math.sin(Math.toRadians(ry)));
+
+        // return (offsetAngle >= 0 * degreePerDirection && offsetAngle < 1 * degreePerDirection) ? "N"
+        // : (offsetAngle >= 1 * degreePerDirection && offsetAngle < 2 * degreePerDirection) ? "NE"
+        //   : (offsetAngle >= 2 * degreePerDirection && offsetAngle < 3 * degreePerDirection) ? "E"
+        //     : (offsetAngle >= 3 * degreePerDirection && offsetAngle < 4 * degreePerDirection) ? "SE"
+        //       : (offsetAngle >= 4 * degreePerDirection && offsetAngle < 5 * degreePerDirection) ? "S"
+        //         : (offsetAngle >= 5 * degreePerDirection && offsetAngle < 6 * degreePerDirection) ? "SW"
+        //           : (offsetAngle >= 6 * degreePerDirection && offsetAngle < 7 * degreePerDirection) ? "W"
+        //             : "NW";
+    
+
+        // System.out.println(ry);
 
         glTranslatef(0, 0, zoom);
 
@@ -310,8 +343,6 @@ public class Renderer{
         // glVertex3f(32, 0, 32);
         // glTexCoord2f(1, 0);
         // glVertex3f(32, 0, -16);
-        Vector2f uv_to = new Vector2f(0, 1);
-        Vector2f uv_from = new Vector2f(1, 0);
 
         Face up = element.faces.get(Direction.UP);
         Face north = element.faces.get(Direction.NORTH);
@@ -320,106 +351,111 @@ public class Renderer{
         Face west = element.faces.get(Direction.WEST);
         Face down = element.faces.get(Direction.DOWN);
 
+        Face currentFace;
+
         glEnable(GL_CULL_FACE);
-        if(up!=null){
+        currentFace = up;
+        if(currentFace!=null){
             glCullFace(GL_BACK);
-            // System.out.println(up.texture);
-            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(up.texture));
+            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(currentFace.texture));
             glBegin(GL_QUADS);
-            glTexCoord2f(uv_to.x, uv_to.y);
+            glTexCoord2f(currentFace.uvTo.x, currentFace.uvTo.y);
             glVertex3f(from.x, to.y, from.z);
-            glTexCoord2f(uv_to.x, uv_from.y);
+            glTexCoord2f(currentFace.uvTo.x, currentFace.uvFrom.y);
             glVertex3f(from.x, to.y, to.z);
-            glTexCoord2f(uv_from.x, uv_from.y);
+            glTexCoord2f(currentFace.uvFrom.x, currentFace.uvFrom.y);
             glVertex3f(to.x, to.y, to.z);
-            glTexCoord2f(uv_from.x, uv_to.y);
+            glTexCoord2f(currentFace.uvFrom.x, currentFace.uvTo.y);
             glVertex3f(to.x, to.y, from.z);
             glEnd();
         }
 
-        if(north!=null){
+        currentFace = north;
+        if(currentFace!=null){
             glCullFace(GL_BACK);
-            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(north.texture));
+            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(currentFace.texture));
             glBegin(GL_QUADS);
-            glColor3f(.43f, .43f, .43f);
-            glTexCoord2f(1, 1);
+            // glColor3f(.43f, .43f, .43f);
+            if(darkDirection==currentFace.direction) glColor3f(.63f, .63f, .63f); else if(darkDirection.next()==currentFace.direction) glColor3f(.43f, .43f, .43f);
+            glTexCoord2f(currentFace.uvTo.x, currentFace.uvTo.y);
             glVertex3f(from.x, from.y, from.z);
-            glTexCoord2f(1, 0);
+            glTexCoord2f(currentFace.uvTo.x, currentFace.uvFrom.y);
             glVertex3f(from.x, to.y, from.z);
-            glTexCoord2f(0, 0);
+            glTexCoord2f(currentFace.uvFrom.x, currentFace.uvFrom.y);
             glVertex3f(to.x, to.y, from.z);
-            glTexCoord2f(0, 1);
+            glTexCoord2f(currentFace.uvFrom.x, currentFace.uvTo.y);
             glVertex3f(to.x, from.y, from.z);
-            // glTexCoord2f(uv_to.x, uv_to.y);
-            // glVertex3f(from.x, from.y, from.z);
-            // glTexCoord2f(uv_to.x, uv_from.y);
-            // glVertex3f(from.x, to.y, from.z);
-            // glTexCoord2f(uv_from.x, uv_from.y);
-            // glVertex3f(to.x, to.y, from.z);
-            // glTexCoord2f(uv_from.x, uv_to.y);
-            // glVertex3f(to.x, from.y, from.z);
             glColor3f(1, 1, 1);
             glEnd();
         }
 
-        if(east!=null){
+        currentFace = east;
+        if(currentFace!=null){
             glCullFace(GL_BACK);
-            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(east.texture));
+            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(currentFace.texture));
             glBegin(GL_QUADS);
-            glColor3f(.63f, .63f, .63f);
-            glTexCoord2f(uv_to.x, uv_to.y);
+            // glColor3f(.63f, .63f, .63f);
+            if(darkDirection==currentFace.direction) glColor3f(.63f, .63f, .63f); else if(darkDirection.next()==currentFace.direction) glColor3f(.43f, .43f, .43f);
+            glTexCoord2f(currentFace.uvTo.x, currentFace.uvTo.y);
             glVertex3f(to.x, from.y, from.z);
-            glTexCoord2f(uv_to.x, uv_from.y);
+            glTexCoord2f(currentFace.uvTo.x, currentFace.uvFrom.y);
             glVertex3f(to.x, to.y, from.z);
-            glTexCoord2f(uv_from.x, uv_from.y);
+            glTexCoord2f(currentFace.uvFrom.x, currentFace.uvFrom.y);
             glVertex3f(to.x, to.y, to.z);
-            glTexCoord2f(uv_from.x, uv_to.y);
+            glTexCoord2f(currentFace.uvFrom.x, currentFace.uvTo.y);
             glVertex3f(to.x, from.y, to.z);
             glColor3f(1, 1, 1);
             glEnd();
         }
 
-        if(south!=null){
+        currentFace = south;
+        if(currentFace!=null){
             glCullFace(GL_BACK);
-            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(south.texture));
+            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(currentFace.texture));
             glBegin(GL_QUADS);
-            glTexCoord2f(uv_to.x, uv_to.y);
+            if(darkDirection==currentFace.direction) glColor3f(.63f, .63f, .63f); else if(darkDirection.next()==currentFace.direction) glColor3f(.43f, .43f, .43f);
+            glTexCoord2f(currentFace.uvTo.x, currentFace.uvTo.y);
             glVertex3f(to.x, from.y, to.z);
-            glTexCoord2f(uv_to.x, uv_from.y);
+            glTexCoord2f(currentFace.uvTo.x, currentFace.uvFrom.y);
             glVertex3f(to.x, to.y, to.z);
-            glTexCoord2f(uv_from.x, uv_from.y);
+            glTexCoord2f(currentFace.uvFrom.x, currentFace.uvFrom.y);
             glVertex3f(from.x, to.y, to.z);
-            glTexCoord2f(uv_from.x, uv_to.y);
+            glTexCoord2f(currentFace.uvFrom.x, currentFace.uvTo.y);
             glVertex3f(from.x, from.y, to.z);
+            glColor3f(1, 1, 1);
             glEnd();
         }
 
-        if(west!=null){
+        currentFace = west;
+        if(currentFace!=null){
             glCullFace(GL_BACK);
-            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(west.texture));
+            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(currentFace.texture));
             glBegin(GL_QUADS);
-            glTexCoord2f(uv_to.x, uv_to.y);
+            if(darkDirection==currentFace.direction) glColor3f(.63f, .63f, .63f); else if(darkDirection.next()==currentFace.direction) glColor3f(.43f, .43f, .43f);
+            glTexCoord2f(currentFace.uvTo.x, currentFace.uvTo.y);
             glVertex3f(from.x, from.y, to.z);
-            glTexCoord2f(uv_to.x, uv_from.y);
+            glTexCoord2f(currentFace.uvTo.x, currentFace.uvFrom.y);
             glVertex3f(from.x, to.y, to.z);
-            glTexCoord2f(uv_from.x, uv_from.y);
+            glTexCoord2f(currentFace.uvFrom.x, currentFace.uvFrom.y);
             glVertex3f(from.x, to.y, from.z);
-            glTexCoord2f(uv_from.x, uv_to.y);
+            glTexCoord2f(currentFace.uvFrom.x, currentFace.uvTo.y);
             glVertex3f(from.x, from.y, from.z);
+            glColor3f(1, 1, 1);
             glEnd();
         }
 
-        if(down!=null){
+        currentFace = down;
+        if(currentFace!=null){
             glCullFace(GL_BACK);
-            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(down.texture));
+            glBindTexture(GL_TEXTURE_2D, bindedTextures.get(currentFace.texture));
             glBegin(GL_QUADS);
-            glTexCoord2f(uv_to.x, uv_to.y);
+            glTexCoord2f(currentFace.uvTo.x, currentFace.uvTo.y);
             glVertex3f(to.x, from.y, from.z);
-            glTexCoord2f(uv_to.x, uv_from.y);
+            glTexCoord2f(currentFace.uvTo.x, currentFace.uvFrom.y);
             glVertex3f(to.x, from.y, to.z);
-            glTexCoord2f(uv_from.x, uv_from.y);
+            glTexCoord2f(currentFace.uvFrom.x, currentFace.uvFrom.y);
             glVertex3f(from.x, from.y, to.z);
-            glTexCoord2f(uv_from.x, uv_to.y);
+            glTexCoord2f(currentFace.uvFrom.x, currentFace.uvTo.y);
             glVertex3f(from.x, from.y, from.z);
             glEnd();
         }
